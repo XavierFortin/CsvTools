@@ -4,7 +4,7 @@ Copyright © 2025 NAME HERE <EMAIL ADDRESS>
 package cmd
 
 import (
-	"csv_tools/csv_utils"
+	"csv-tools/csv_utils"
 	"fmt"
 	"path/filepath"
 	"sync"
