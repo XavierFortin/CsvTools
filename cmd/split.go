@@ -14,7 +14,7 @@ var (
 	num_files, num_lines int
 	delimiter            string
 	hasHeader            bool
-	parallel             bool
+	clean                bool
 )
 
 // Split the CSV file into multiple files specified by num_files
@@ -68,7 +68,13 @@ var splitCmd = &cobra.Command{
 			return
 		}
 
-		records, err := csv_utils.ReadCSVFile(fileName, rune(delimiter[0]))
+		var records [][]string
+		var err error
+		if clean {
+			records, err = csv_utils.ReadAndCleanCSVFile(fileName, rune(delimiter[0]))
+		} else {
+			records, err = csv_utils.ReadCSVFile(fileName, rune(delimiter[0]))
+		}
 
 		if err != nil {
 			fmt.Printf("Error opening file %s: %v\n", fileName, err)
@@ -91,6 +97,7 @@ func init() {
 	splitCmd.Flags().IntVarP(&num_lines, "lines", "l", 0, "Number of lines per file")
 	splitCmd.Flags().StringVarP(&delimiter, "delimiter", "d", ",", "Delimiter to use")
 	splitCmd.Flags().BoolVarP(&hasHeader, "header", "H", true, "Recopy the headers for each file")
+	splitCmd.Flags().BoolVarP(&clean, "clean", "c", false, "Remove empty columns")
 
 	splitCmd.MarkFlagsOneRequired("files", "lines")
 }
