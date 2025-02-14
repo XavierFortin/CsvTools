@@ -6,16 +6,15 @@ package cmd
 import (
 	"csv-tools/csv_utils"
 	"fmt"
-	"path/filepath"
-	"sync"
-
 	"github.com/spf13/cobra"
+	"path/filepath"
 )
 
 var (
 	num_files, num_lines int
 	delimiter            string
 	hasHeader            bool
+	parallel             bool
 )
 
 // Split the CSV file into multiple files specified by num_files
@@ -34,30 +33,22 @@ func splitByLines(records [][]string, fileName string, lines_count int) {
 	}
 	files_count := length / lines_count
 
-	wg := sync.WaitGroup{}
-	wg.Add(files_count)
-
 	if hasHeader {
 		csv_utils.SetHeaders(records[0])
 		records = records[1:]
 	}
 
-	destFilePath := filepath.Dir(fileName)
 	baseName := fileName[:len(fileName)-len(filepath.Ext(fileName))]
 	for i := 0; i < files_count; i++ {
-		go func(i int) {
-			defer wg.Done()
-			index := i + 1
-			fileName := fmt.Sprintf("%s/%s-%d.csv", destFilePath, baseName, index)
+		index := i + 1
+		fileName := fmt.Sprintf("%s-%d.csv", baseName, index)
 
-			if index == files_count {
-				csv_utils.WriteCSVFile(fileName, records[i*lines_count:], delimiter)
-			} else {
-				csv_utils.WriteCSVFile(fileName, records[i*lines_count:index*lines_count], delimiter)
-			}
-		}(i)
+		if index == files_count {
+			csv_utils.WriteCSVFile(fileName, records[i*lines_count:], delimiter)
+		} else {
+			csv_utils.WriteCSVFile(fileName, records[i*lines_count:index*lines_count], delimiter)
+		}
 	}
-	wg.Wait()
 
 	fmt.Printf("Split %s into %d files\n", fileName, files_count)
 
@@ -77,7 +68,7 @@ var splitCmd = &cobra.Command{
 			return
 		}
 
-		records, err := csv_utils.OpenCSVFile(fileName, delimiter)
+		records, err := csv_utils.ReadCSVFile(fileName, rune(delimiter[0]))
 
 		if err != nil {
 			fmt.Printf("Error opening file %s: %v\n", fileName, err)
@@ -99,7 +90,7 @@ func init() {
 	splitCmd.Flags().IntVarP(&num_files, "files", "f", 0, "Number of files to split into")
 	splitCmd.Flags().IntVarP(&num_lines, "lines", "l", 0, "Number of lines per file")
 	splitCmd.Flags().StringVarP(&delimiter, "delimiter", "d", ",", "Delimiter to use")
-	splitCmd.Flags().BoolVarP(&hasHeader, "header", "H", false, "File has header")
+	splitCmd.Flags().BoolVarP(&hasHeader, "header", "H", true, "Recopy the headers for each file")
 
 	splitCmd.MarkFlagsOneRequired("files", "lines")
 }

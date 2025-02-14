@@ -13,7 +13,7 @@ func SetHeaders(h []string) {
 	headers = h
 }
 
-func OpenCSVFile(fileName string, delimiter string) ([][]string, error) {
+func ReadCSVFile(fileName string, delimiter rune) ([][]string, error) {
 	csvFile, err := os.Open(fileName)
 	if err != nil {
 		return nil, err
@@ -25,7 +25,9 @@ func OpenCSVFile(fileName string, delimiter string) ([][]string, error) {
 	}
 
 	reader := csv.NewReader(csvFile)
-	reader.Comma = rune(delimiter[0])
+	reader.Comma = delimiter
+	reader.ReuseRecord = true
+	reader.TrimLeadingSpace = true
 	records, err := reader.ReadAll()
 	if err != nil {
 		fmt.Printf("Error reading CSV file: %v\n", err)
