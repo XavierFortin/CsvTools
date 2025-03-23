@@ -3,8 +3,8 @@ package cmd
 import (
 	"csv-tools/csv_utils"
 	"fmt"
+	"log"
 	"os"
-	"path/filepath"
 	"strconv"
 
 	"github.com/charmbracelet/bubbles/key"
@@ -13,74 +13,41 @@ import (
 )
 
 var (
-	num_files, num_lines int
-	delimiter            string
-	clean                bool
+	num_files int
+	delimiter string
+	clean     bool
 )
 
-func splitByFiles(records [][]string, fileName string, files_count int) {
-	length := len(records)
-	records_per_file := length / files_count
+func HandleSplit(file *os.File, fileCount int, delim string, clean bool) int {
+	var records [][]string
 
-	splitByLines(records, fileName, records_per_file)
-}
-
-func splitByLines(records [][]string, fileName string, lines_count int) {
-	length := len(records)
-
-	if length < lines_count {
-		fmt.Printf("File %s has less than %d lines\n", fileName, lines_count)
+	var err error
+	if clean {
+		records, err = csv_utils.ReadAndCleanCSVFile(file, rune(delim[0]))
+	} else {
+		records, err = csv_utils.ReadCSVFile(file, rune(delim[0]))
 	}
-	files_count := length / lines_count
 
-	if files_count >= 25 {
+	if err != nil {
+		log.Fatalf("error opening file %s: %v\n", file.Name(), err)
+	}
+
+	if fileCount >= 25 {
 		confirmValue := false
 		huh.NewConfirm().
-			Title(fmt.Sprintf("This will create %d files. Are you sure you want to continue?", files_count)).
+			Title(fmt.Sprintf("This will create %d files. Are you sure you want to continue?", fileCount)).
 			Value(&confirmValue).
 			Run()
-
 		if !confirmValue {
-			return
+			return 0
 		}
 	}
 
 	csv_utils.SetHeaders(records[0])
 	records = records[1:]
+	csv_utils.SplitFiles(records, file.Name(), fileCount, rune(delim[0]))
 
-	baseName := fileName[:len(fileName)-len(filepath.Ext(fileName))]
-	for i := range files_count {
-		index := i + 1
-		fileName := fmt.Sprintf("%s-%d.csv", baseName, index)
-
-		if index == files_count {
-			csv_utils.WriteCSVFile(fileName, records[i*lines_count:], delimiter)
-		} else {
-			csv_utils.WriteCSVFile(fileName, records[i*lines_count:index*lines_count], delimiter)
-		}
-	}
-	fmt.Printf("Split %s into %d files\n", fileName, files_count)
-}
-
-func HandleSplit(fileName string, lines_count int, file_count int, delimiter string, clean bool) {
-	var records [][]string
-	var err error
-	if clean {
-		records, err = csv_utils.ReadAndCleanCSVFile(fileName, rune(delimiter[0]))
-	} else {
-		records, err = csv_utils.ReadCSVFile(fileName, rune(delimiter[0]))
-	}
-
-	if err != nil {
-		fmt.Printf("Error opening file %s: %v\n", fileName, err)
-		return
-	}
-
-	if file_count != 0 {
-		splitByFiles(records, fileName, file_count)
-	} else if lines_count != 0 {
-		splitByLines(records, fileName, lines_count)
-	}
+	return fileCount
 }
 
 // splitCmd represents the split command
@@ -90,12 +57,10 @@ var splitCmd = &cobra.Command{
 	Args:  cobra.RangeArgs(0, 1),
 	Run: func(cmd *cobra.Command, args []string) {
 		var fileName string
+		var filesCount string
 		clean = true
 
 		if len(args) == 0 {
-			var split_type string
-			var number_of_type string
-			var delimiter string
 
 			keymap := huh.NewDefaultKeyMap()
 			keymap.FilePicker.Next = key.NewBinding(key.WithDisabled())
@@ -124,28 +89,18 @@ var splitCmd = &cobra.Command{
 							huh.NewOption("Colon (:)", ":"),
 						),
 
-					huh.NewSelect[string]().
-						Title("Split by number of lines or files").
-						Value(&split_type).
-						Options(
-							huh.NewOption("Lines", "lines"),
-							huh.NewOption("Files", "files"),
-						),
-
 					huh.NewInput().
-						TitleFunc(func() string {
-							return fmt.Sprintf("Enter number of %s to split into", split_type)
-						}, &split_type).
+						Title(fmt.Sprintf("Enter number of files to split into")).
 						Validate(func(s string) error {
 							if s != "" {
 								_, err := strconv.Atoi(s)
 								if err != nil {
-									return fmt.Errorf("Invalid number of lines")
+									return fmt.Errorf("Invalid number of files")
 								}
 							}
 							return nil
 						}).
-						Value(&number_of_type),
+						Value(&filesCount),
 
 					huh.NewConfirm().
 						Title("Remove empty columns").Accessor(huh.NewPointerAccessor(&clean)).
@@ -157,21 +112,21 @@ var splitCmd = &cobra.Command{
 			).WithKeyMap(keymap)
 
 			form.Run()
-
-			if split_type == "lines" {
-				num_lines, _ = strconv.Atoi(number_of_type)
-			} else {
-				num_files, _ = strconv.Atoi(number_of_type)
-			}
 		} else {
 			fileName = args[0]
 		}
-
-		if num_files != 0 && num_lines != 0 {
-			fmt.Println("Cannot specify both files and lines")
+		num_files, _ := strconv.Atoi(filesCount)
+		if num_files == 0 {
+			fmt.Println("Number of files to split into is required")
 			return
 		}
-		HandleSplit(fileName, num_lines, num_files, delimiter, clean)
+		selectedFile, err := os.Open(fileName)
+		defer selectedFile.Close()
+		if err != nil {
+			log.Fatalf("error opening file %s: %v\n", fileName, err)
+		}
+		generated_files := HandleSplit(selectedFile, num_files, delimiter, clean)
+		fmt.Printf("Split %s into %d files\n", fileName, generated_files)
 	},
 }
 
@@ -180,11 +135,6 @@ func init() {
 
 	splitCmd.Flags().SortFlags = false
 	splitCmd.Flags().IntVarP(&num_files, "files", "f", 0, "Number of files to split into")
-	splitCmd.Flags().IntVarP(&num_lines, "lines", "l", 0, "Number of lines per file")
 	splitCmd.Flags().StringVarP(&delimiter, "delimiter", "d", ",", "Delimiter to use")
 	splitCmd.Flags().BoolVarP(&clean, "clean", "c", false, "Remove empty columns")
-
-	if len(os.Args) == 3 {
-		splitCmd.MarkFlagsOneRequired("files", "lines")
-	}
 }

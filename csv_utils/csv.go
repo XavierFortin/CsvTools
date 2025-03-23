@@ -14,18 +14,12 @@ func SetHeaders(h []string) {
 	headers = h
 }
 
-func ReadCSVFile(fileName string, delimiter rune) ([][]string, error) {
-	csvFile, err := os.Open(fileName)
-	if err != nil {
-		return nil, err
-	}
-	defer csvFile.Close()
-
-	if filepath.Ext(fileName) != ".csv" {
-		return nil, fmt.Errorf("File %s is not a CSV file", fileName)
+func ReadCSVFile(file *os.File, delimiter rune) ([][]string, error) {
+	if filepath.Ext(file.Name()) != ".csv" {
+		return nil, fmt.Errorf("File %s is not a CSV file", file.Name())
 	}
 
-	reader := csv.NewReader(csvFile)
+	reader := csv.NewReader(file)
 	reader.Comma = delimiter
 	reader.ReuseRecord = true
 	reader.TrimLeadingSpace = true
@@ -38,25 +32,21 @@ func ReadCSVFile(fileName string, delimiter rune) ([][]string, error) {
 	return records, nil
 }
 
-func ReadAndCleanCSVFile(fileName string, delimiter rune) ([][]string, error) {
-	csvFile, err := os.Open(fileName)
-	if err != nil {
-		return nil, err
-	}
-	defer csvFile.Close()
-
-	if filepath.Ext(fileName) != ".csv" {
-		return nil, fmt.Errorf("File %s is not a CSV file", fileName)
+func ReadAndCleanCSVFile(file *os.File, delimiter rune) ([][]string, error) {
+	if filepath.Ext(file.Name()) != ".csv" {
+		return nil, fmt.Errorf("File %s is not a CSV file", file.Name())
 	}
 
-	reader := csv.NewReader(csvFile)
+	reader := csv.NewReader(file)
+	fmt.Print("Creating Reader\n")
 	reader.Comma = delimiter
 	reader.TrimLeadingSpace = true
 	header, err := reader.Read()
+	fmt.Printf("Header: %v\n", header)
 
 	if err != nil {
 		if err == io.EOF {
-			return nil, fmt.Errorf("File %s is empty", fileName)
+			return nil, fmt.Errorf("File %s is empty", file.Name())
 		} else {
 			return nil, err
 		}
@@ -71,6 +61,7 @@ func ReadAndCleanCSVFile(fileName string, delimiter rune) ([][]string, error) {
 
 	oldRecords := make([][]string, 0)
 	for {
+
 		row, err := reader.Read()
 		if err == io.EOF {
 			break
@@ -102,7 +93,7 @@ func ReadAndCleanCSVFile(fileName string, delimiter rune) ([][]string, error) {
 	newRecords := make([][]string, 0)
 
 	if len(outputHeader) == 0 {
-		fmt.Printf("All columns are empty in file %s\n", fileName)
+		fmt.Printf("All columns are empty in file %s\n", file.Name())
 	}
 
 	newRecords = append(newRecords, outputHeader)
@@ -120,7 +111,25 @@ func ReadAndCleanCSVFile(fileName string, delimiter rune) ([][]string, error) {
 	return newRecords, nil
 }
 
-func WriteCSVFile(fileName string, records [][]string, delimiter string) error {
+func SplitFiles(records [][]string, fileName string, fileCount int, delimiter rune) int {
+	baseName := fileName[:len(fileName)-len(filepath.Ext(fileName))]
+	length := len(records)
+	lines_count := length / fileCount
+
+	for i := range fileCount {
+		index := i + 1
+		fileName := fmt.Sprintf("%s-%d.csv", baseName, index)
+
+		if index == fileCount {
+			WriteSingleFile(fileName, records[i*lines_count:], delimiter)
+		} else {
+			WriteSingleFile(fileName, records[i*lines_count:index*lines_count], delimiter)
+		}
+	}
+	return fileCount
+}
+
+func WriteSingleFile(fileName string, records [][]string, delimiter rune) error {
 	csvFile, err := os.Create(fileName)
 	if err != nil {
 		fmt.Printf("Error creating file %s: %v\n", fileName, err)
@@ -128,7 +137,7 @@ func WriteCSVFile(fileName string, records [][]string, delimiter string) error {
 	}
 	defer csvFile.Close()
 	writer := csv.NewWriter(csvFile)
-	writer.Comma = rune(delimiter[0])
+	writer.Comma = rune(delimiter)
 	if len(headers) > 0 {
 		writer.Write(headers)
 	}

@@ -4,6 +4,10 @@ Copyright © 2025 NAME HERE <EMAIL ADDRESS>
 package cmd
 
 import (
+	"fmt"
+	"log"
+	"os"
+
 	"github.com/charmbracelet/bubbles/key"
 	"github.com/charmbracelet/huh"
 	"github.com/spf13/cobra"
@@ -54,9 +58,13 @@ var cleanCmd = &cobra.Command{
 		} else {
 			fileName = args[0]
 		}
-
-		HandleSplit(fileName, 0, 1, delimiter, true)
-
+		selectedFile, err := os.Open(fileName)
+		defer selectedFile.Close()
+		if err != nil {
+			log.Fatalf("error opening file %s: %v\n", fileName, err)
+		}
+		HandleSplit(selectedFile, 1, delimiter, true)
+		fmt.Printf("Cleaned the empty rows of %s\n", fileName)
 	},
 }
 
