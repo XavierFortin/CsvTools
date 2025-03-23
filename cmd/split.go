@@ -1,6 +1,3 @@
-/*
-Copyright © 2025 NAME HERE <EMAIL ADDRESS>
-*/
 package cmd
 
 import (
@@ -52,7 +49,7 @@ func splitByLines(records [][]string, fileName string, lines_count int) {
 	records = records[1:]
 
 	baseName := fileName[:len(fileName)-len(filepath.Ext(fileName))]
-	for i := 0; i < files_count; i++ {
+	for i := range files_count {
 		index := i + 1
 		fileName := fmt.Sprintf("%s-%d.csv", baseName, index)
 
@@ -62,9 +59,7 @@ func splitByLines(records [][]string, fileName string, lines_count int) {
 			csv_utils.WriteCSVFile(fileName, records[i*lines_count:index*lines_count], delimiter)
 		}
 	}
-
 	fmt.Printf("Split %s into %d files\n", fileName, files_count)
-
 }
 
 func HandleSplit(fileName string, lines_count int, file_count int, delimiter string, clean bool) {
@@ -168,7 +163,6 @@ var splitCmd = &cobra.Command{
 			} else {
 				num_files, _ = strconv.Atoi(number_of_type)
 			}
-
 		} else {
 			fileName = args[0]
 		}
