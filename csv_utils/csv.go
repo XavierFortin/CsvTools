@@ -38,11 +38,9 @@ func ReadAndCleanCSVFile(file *os.File, delimiter rune) ([][]string, error) {
 	}
 
 	reader := csv.NewReader(file)
-	fmt.Print("Creating Reader\n")
 	reader.Comma = delimiter
 	reader.TrimLeadingSpace = true
 	header, err := reader.Read()
-	fmt.Printf("Header: %v\n", header)
 
 	if err != nil {
 		if err == io.EOF {
