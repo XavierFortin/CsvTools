@@ -26,7 +26,7 @@ func init() {
 
 func doSelfUpdate() {
 	// Your GitHub repository in the format "owner/repo"
-	repo := "yourUsername/yourRepoName"
+	repo := "XavierFortin/CsvTools"
 
 	// Check for the latest version
 	fmt.Println("Checking for updates...")
