@@ -25,14 +25,14 @@ jobs:
       - name: Build and package Linux binary
         run: |
           mkdir -p build/linux
-          GOOS=linux GOARCH=amd64 go build -ldflags "-s -w" -o build/linux/csv-tools
+          GOOS=linux GOARCH=amd64 go build -ldflags "-s -w -X 'csv-tools/cmd.Version=${{github.ref_name}}'" -o build/linux/csv-tools
           cd build/linux
           zip ../csv-tools:${{github.ref_name}}-linux-amd64.zip csv-tools
           cd ../..
       - name: Build and package Windows binary
         run: |
           mkdir -p build/windows
-          GOOS=windows GOARCH=amd64 go build -ldflags "-s -w" -o build/windows/csv-tools.exe
+          GOOS=windows GOARCH=amd64 go build -ldflags "-s -w -X 'csv-tools/cmd.Version=${{github.ref_name}}'" -o build/windows/csv-tools.exe
           cd build/windows
           zip ../csv-tools:${{github.ref_name}}-windows-amd64.zip csv-tools.exe
           cd ../..
